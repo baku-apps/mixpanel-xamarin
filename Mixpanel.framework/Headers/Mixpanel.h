@@ -5,18 +5,39 @@
 #import <Cocoa/Cocoa.h>
 #endif
 #import "MixpanelPeople.h"
+#import "MixpanelType.h"
 
-#define MIXPANEL_FLUSH_IMMEDIATELY defined(MIXPANEL_WATCHOS)
-#define MIXPANEL_NO_REACHABILITY_SUPPORT (defined(MIXPANEL_TVOS) || defined(MIXPANEL_WATCHOS) || defined(MIXPANEL_MACOS))
-#define MIXPANEL_NO_AUTOMATIC_EVENTS_SUPPORT (defined(MIXPANEL_TVOS) || defined(MIXPANEL_WATCHOS) || defined(MIXPANEL_MACOS))
-#define MIXPANEL_NO_NOTIFICATION_AB_TEST_SUPPORT (defined(MIXPANEL_TVOS) || defined(MIXPANEL_WATCHOS) || defined(MIXPANEL_MACOS))
-#define MIXPANEL_NO_APP_LIFECYCLE_SUPPORT defined(MIXPANEL_WATCHOS)
-#define MIXPANEL_NO_UIAPPLICATION_ACCESS (defined(MIXPANEL_WATCHOS) || defined(MIXPANEL_MACOS))
+
+#if defined(MIXPANEL_WATCHOS)
+#define MIXPANEL_FLUSH_IMMEDIATELY 1
+#define MIXPANEL_NO_APP_LIFECYCLE_SUPPORT 1
+#endif
+
+#if (defined(MIXPANEL_WATCHOS) || defined(MIXPANEL_MACOS))
+#define MIXPANEL_NO_UIAPPLICATION_ACCESS 1
+#endif
+
+#if (defined(MIXPANEL_TVOS) || defined(MIXPANEL_WATCHOS) || defined(MIXPANEL_MACOS))
+#define MIXPANEL_NO_REACHABILITY_SUPPORT 1
+#define MIXPANEL_NO_AUTOMATIC_EVENTS_SUPPORT 1
+#define MIXPANEL_NO_NOTIFICATION_AB_TEST_SUPPORT 1
+#define MIXPANEL_NO_CONNECT_INTEGRATION_SUPPORT 1
+#endif
 
 @class    MixpanelPeople;
+@class    MixpanelGroup;
 @protocol MixpanelDelegate;
 
 NS_ASSUME_NONNULL_BEGIN
+
+/*!
+ A string constant "mini" that respresent Mini Notification
+ */
+extern NSString *const MPNotificationTypeMini;
+/*!
+ A string constant "takeover" that respresent Takeover Notification
+ */
+extern NSString *const MPNotificationTypeTakeover;
 
 /*!
  Mixpanel API.
@@ -57,7 +78,7 @@ NS_ASSUME_NONNULL_BEGIN
 /*!
  The distinct ID of the current user.
 
- A distinct ID is a string that uniquely identifies one of your users. By default, 
+ A distinct ID is a string that uniquely identifies one of your users. By default,
  we'll use the device's advertisingIdentifier UUIDString, if that is not available
  we'll use the device's identifierForVendor UUIDString, and finally if that
  is not available we will generate a new random UUIDString. To change the
@@ -66,14 +87,38 @@ NS_ASSUME_NONNULL_BEGIN
 @property (atomic, readonly, copy) NSString *distinctId;
 
 /*!
+ The default anonymous Id / distinct Id  given to the events before identify.
+
+ A default distinct ID is a string that uniquely identifies the anonymous activity.
+ By default, we'll use the device's advertisingIdentifier UUIDString, if that is not
+ available we'll use the device's identifierForVendor UUIDString, and finally if that
+ is not available we will generate a new random UUIDString.
+ */
+@property (atomic, readonly, copy) NSString *anonymousId;
+
+/*!
+  The user ID with which <code>identify:</code> is called with.
+
+  This is null until <code>identify:</code> is called and is set to the id
+  with which identify is called with.
+ */
+@property (atomic, readonly, copy) NSString *userId;
+
+/*!
  The alias of the current user.
- 
- An alias is another string that uniquely identifies one of your users. Typically, 
+
+ An alias is another string that uniquely identifies one of your users. Typically,
  this is the user ID from your database. By using an alias you can link pre- and
  post-sign up activity as well as cross-platform activity under one distinct ID.
  To set the alias use the <code>createAlias:forDistinctID:</code> method.
  */
 @property (atomic, readonly, copy) NSString *alias;
+
+/*!
+ A flag which says if a distinctId is already in peristence from old sdk
+  Defaults to NO.
+ */
+@property (atomic) BOOL hadPersistedDistinctId;
 
 /*!
  The base URL used for Mixpanel API requests.
@@ -136,21 +181,21 @@ NS_ASSUME_NONNULL_BEGIN
 @property (atomic) BOOL showNotificationOnActive;
 
 /*!
- Controls whether to automatically send the client IP Address as part of 
+ Controls whether to automatically send the client IP Address as part of
  event tracking. With an IP address, geo-location is possible down to neighborhoods
  within a city, although the Mixpanel Dashboard will just show you city level location
  specificity. For privacy reasons, you may be in a situation where you need to forego
  effectively having access to such granular location information via the IP Address.
- 
+
  Defaults to YES.
  */
 @property (atomic) BOOL useIPAddressForGeoLocation;
 
 /*!
- Controls whether to enable the visual test designer for A/B testing and codeless on mixpanel.com. 
+ Controls whether to enable the visual test designer for A/B testing and codeless on mixpanel.com.
  You will be unable to edit A/B tests and codeless events with this disabled, however *previously*
  created A/B tests and codeless events will still be delivered.
- 
+
  Defaults to YES.
  */
 @property (atomic) BOOL enableVisualABTestAndCodeless;
@@ -158,15 +203,15 @@ NS_ASSUME_NONNULL_BEGIN
 /*!
  Controls whether to enable the run time debug logging at all levels. Note that the
  Mixpanel SDK uses Apple System Logging to forward log messages to `STDERR`, this also
- means that mixpanel logs are segmented by log level. Settings this to `YES` will enable 
+ means that mixpanel logs are segmented by log level. Settings this to `YES` will enable
  Mixpanel logging at the following levels:
- 
-   * Error - Something has failed 
+
+   * Error - Something has failed
    * Warning - Something is amiss and might fail if not corrected
    * Info - The lowest priority that is normally logged, purely informational in nature
    * Debug - Information useful only to developers, and normally not logged.
- 
- 
+
+
  Defaults to NO.
  */
 @property (atomic) BOOL enableLogging;
@@ -228,6 +273,19 @@ NS_ASSUME_NONNULL_BEGIN
 + (Mixpanel *)sharedInstanceWithToken:(NSString *)apiToken;
 
 /*!
+ Initializes a singleton instance of the API, uses it to set whether or not to opt out tracking for
+ GDPR compliance, and then returns it.
+
+ This is the preferred method for creating a sharedInstance with a mixpanel
+ like above. With the optOutTrackingByDefault parameter, Mixpanel tracking can be opted out by default.
+
+ @param apiToken        your project token
+ @param optOutTrackingByDefault  whether or not to be opted out from tracking by default
+
+ */
++ (Mixpanel *)sharedInstanceWithToken:(NSString *)apiToken optOutTrackingByDefault:(BOOL)optOutTrackingByDefault;
+
+/*!
  Initializes a singleton instance of the API, uses it to track launchOptions information,
  and then returns it.
 
@@ -242,12 +300,43 @@ NS_ASSUME_NONNULL_BEGIN
 + (Mixpanel *)sharedInstanceWithToken:(NSString *)apiToken launchOptions:(nullable NSDictionary *)launchOptions;
 
 /*!
+ Initializes a singleton instance of the API, uses it to track launchOptions information,
+ and then returns it.
+
+ This is the preferred method for creating a sharedInstance with a mixpanel
+ like above. With the trackCrashes and automaticPushTracking parameter, Mixpanel can track crashes and automatic push.
+
+ @param apiToken        your project token
+ @param launchOptions   your application delegate's launchOptions
+ @param trackCrashes    whether or not to track crashes in Mixpanel. may want to disable if you're seeing
+ issues with your crash reporting for either signals or exceptions
+ @param automaticPushTracking    whether or not to automatically track pushes sent from Mixpanel
+ */
++ (Mixpanel *)sharedInstanceWithToken:(NSString *)apiToken launchOptions:(nullable NSDictionary *)launchOptions trackCrashes:(BOOL)trackCrashes automaticPushTracking:(BOOL)automaticPushTracking;
+
+/*!
+ Initializes a singleton instance of the API, uses it to track launchOptions information,
+ and then returns it.
+
+ This is the preferred method for creating a sharedInstance with a mixpanel
+ like above. With the optOutTrackingByDefault parameter, Mixpanel tracking can be opted out by default.
+
+ @param apiToken        your project token
+ @param launchOptions   your application delegate's launchOptions
+ @param trackCrashes    whether or not to track crashes in Mixpanel. may want to disable if you're seeing
+ issues with your crash reporting for either signals or exceptions
+ @param automaticPushTracking    whether or not to automatically track pushes sent from Mixpanel
+ @param optOutTrackingByDefault  whether or not to be opted out from tracking by default
+ */
++ (Mixpanel *)sharedInstanceWithToken:(NSString *)apiToken launchOptions:(nullable NSDictionary *)launchOptions trackCrashes:(BOOL)trackCrashes automaticPushTracking:(BOOL)automaticPushTracking optOutTrackingByDefault:(BOOL)optOutTrackingByDefault;
+
+/*!
  Returns a previously instantiated singleton instance of the API.
 
  The API must be initialized with <code>sharedInstanceWithToken:</code> or
  <code>initWithToken:launchOptions:andFlushInterval</code> before calling this class method.
- This method will return <code>nil</code> if there are no instances created. If there is more than 
- one instace, it will return the first one that was created by using <code>sharedInstanceWithToken:</code> 
+ This method will return <code>nil</code> if there are no instances created. If there is more than
+ one instace, it will return the first one that was created by using <code>sharedInstanceWithToken:</code>
  or <code>initWithToken:launchOptions:andFlushInterval:</code>.
  */
 + (nullable Mixpanel *)sharedInstance;
@@ -269,6 +358,26 @@ NS_ASSUME_NONNULL_BEGIN
                 launchOptions:(nullable NSDictionary *)launchOptions
                 flushInterval:(NSUInteger)flushInterval
                  trackCrashes:(BOOL)trackCrashes;
+
+/*!
+ Initializes an instance of the API with the given project token. This also sets
+ it as a shared instance so you can use <code>sharedInstance</code> or
+ <code>sharedInstanceWithToken:</code> to retrieve this object later.
+
+ Creates and initializes a new API object. See also <code>sharedInstanceWithToken:</code>.
+
+ @param apiToken        your project token
+ @param launchOptions   optional app delegate launchOptions
+ @param flushInterval   interval to run background flushing
+ @param trackCrashes    whether or not to track crashes in Mixpanel. may want to disable if you're seeing
+ issues with your crash reporting for either signals or exceptions
+ @param automaticPushTracking    whether or not to automatically track pushes sent from Mixpanel
+ */
+- (instancetype)initWithToken:(NSString *)apiToken
+                launchOptions:(nullable NSDictionary *)launchOptions
+                flushInterval:(NSUInteger)flushInterval
+                 trackCrashes:(BOOL)trackCrashes
+        automaticPushTracking:(BOOL)automaticPushTracking;
 
 /*!
  Initializes an instance of the API with the given project token.
@@ -314,7 +423,9 @@ NS_ASSUME_NONNULL_BEGIN
  Mixpanel will use the IFV as the default distinct ID.
 
  If we are unable to get an IFA or IFV, we will fall back to generating a
- random persistent UUID.
+ random persistent UUID. If you want to always use a random persistent UUID
+ you can define the <code>MIXPANEL_RANDOM_DISTINCT_ID</code> preprocessor flag
+ in your build settings.
 
  For tracking events, you do not need to call <code>identify:</code> if you
  want to use the default.  However, <b>Mixpanel People always requires an
@@ -334,16 +445,78 @@ NS_ASSUME_NONNULL_BEGIN
 /*!
  Sets the distinct ID of the current user. With the option of only updating the
  distinct ID value and not the Mixpanel People distinct ID.
- 
+
  This method is not intended to be used unless you wish to prevent updating the Mixpanel
  People distinct ID value by passing a value of NO to the usePeople param. This can be
- useful if the user wishes to prevent People updates from being sent until the identify 
+ useful if the user wishes to prevent People updates from being sent until the identify
  method is called.
- 
+
  @param distinctId string that uniquely identifies the current user
  @param usePeople bool controls whether or not to set the people distinctId to the event distinctId
  */
 - (void)identify:(NSString *)distinctId usePeople:(BOOL)usePeople;
+
+/*!
+ Add a group to this user's membership for a particular group key.
+ The groupKey must be an NSString. The groupID should be a legal MixpanelType value.
+ 
+ @param groupKey        the group key
+ @param groupID         the group ID
+ */
+- (void)addGroup:(NSString *)groupKey groupID:(id<MixpanelType>)groupID;
+
+/*!
+ Remove a group from this user's membership for a particular group key.
+ The groupKey must be an NSString. The groupID should be a legal MixpanelType value.
+ 
+ @param groupKey        the group key
+ @param groupID         the group ID
+ */
+- (void)removeGroup:(NSString *)groupKey groupID:(id<MixpanelType>)groupID;
+
+/*!
+ Set the group to which the user belongs.
+ The groupKey must be an NSString. The groupID should be an array
+ of MixpanelTypes.
+ 
+ @param groupKey        the group key
+ @param groupIDs        the group IDs
+ */
+- (void)setGroup:(NSString *)groupKey groupIDs:(NSArray<id<MixpanelType>> *)groupIDs;
+
+/*!
+ Convenience method to set a single group ID for the current user.
+ 
+ @param groupKey        the group key
+ @param groupID         the group ID
+ */
+- (void)setGroup:(NSString *)groupKey groupID:(id<MixpanelType>)groupID;
+
+/*!
+ Tracks an event with specific groups.
+ 
+ Similar to track(), the data will also be sent to the specific group
+ datasets. Group key/value pairs are upserted into the property map
+ before tracking.
+ The keys in groups must be NSString objects. values can be any legal
+ MixpanelType objects. If the event is being timed, the timer will
+ stop and be added as a property.
+ 
+ @param event               event name
+ @param properties          properties dictionary
+ @param groups              groups dictionary, which contains key-value pairs
+ for this event
+ */
+- (void)trackWithGroups:(NSString *)event properties:(NSDictionary *)properties groups:(NSDictionary *)groups;
+
+/*!
+ Get a MixpanelGroup identifier from groupKey and groupID.
+ The groupKey must be an NSString. The groupID should be a legal MixpanelType value.
+ 
+ @param groupKey    the group key
+ @param groupID     the group ID
+ */
+- (MixpanelGroup *)getGroup:(NSString *)groupKey groupID:(id<MixpanelType>)groupID;
 
 /*!
  Tracks an event.
@@ -490,7 +663,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 /*!
  Calls flush, then optionally archives and calls a handler when finished.
- 
+
  When calling <code>flush</code> manually, it is sometimes important to verify
  that the flush has finished before further action is taken. This is
  especially important when the app is in the background and could be suspended
@@ -558,6 +731,61 @@ NS_ASSUME_NONNULL_BEGIN
  Returns the Mixpanel library version number as a string, e.g. "3.2.3".
  */
 - (NSString *)libVersion;
+
+/*!
+ Opt out tracking.
+
+ This method is used to opt out tracking. This causes all events and people request no longer
+ to be sent back to the Mixpanel server.
+ */
+- (void)optOutTracking;
+
+/*!
+ Opt in tracking.
+
+ Use this method to opt in an already opted out user from tracking. People updates and track calls will be
+ sent to Mixpanel after using this method.
+
+ This method will internally track an opt in event to your project. If you want to identify the opt-in
+ event and/or pass properties to the event, See also <code>optInTrackingForDistinctId:</code> and
+ <code>optInTrackingForDistinctId:withEventProperties:</code>.
+ */
+- (void)optInTracking;
+
+/*!
+ Opt in tracking.
+
+ Use this method to opt in an already opted out user from tracking. People updates and track calls will be
+ sent to Mixpanel after using this method.
+
+ This method will internally track an opt in event to your project. If you want to pass properties to the event, see also
+ <code>optInTrackingForDistinctId:withEventProperties:</code>.
+
+ @param distinctID     optional string to use as the distinct ID for events. This will call <code>identify:</code>.
+ If you use people profiles make sure you manually call <code>identify:</code> after this method.
+ */
+- (void)optInTrackingForDistinctID:(nullable NSString *)distinctID;
+
+/*!
+ Opt in tracking.
+
+ Use this method to opt in an already opted out user from tracking. People updates and track calls will be
+ sent to Mixpanel after using this method.
+
+ This method will internally track an opt in event to your project.See also <code>optInTracking</code> or
+ <code>optInTrackingForDistinctId:</code>.
+
+ @param distinctID     optional string to use as the distinct ID for events. This will call <code>identify:</code>.
+ If you use people profiles make sure you manually call <code>identify:</code> after this method.
+ @param properties     optional properties dictionary that could be passed to add properties to the opt-in event that is sent to
+ Mixpanel.
+ */
+- (void)optInTrackingForDistinctID:(nullable NSString *)distinctID withEventProperties:(nullable NSDictionary *)properties;
+
+/*!
+ Returns YES if the current user has opted out tracking, NO if the current user has opted in tracking.
+ */
+- (BOOL)hasOptedOutTracking;
 
 /*!
  Returns the Mixpanel library version number as a string, e.g. "3.2.3".

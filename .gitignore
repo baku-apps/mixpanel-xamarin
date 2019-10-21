@@ -43,3 +43,4 @@ Thumbs.db
 # Carthage
 Carthage/
 Cartfile.resolved
+.vs

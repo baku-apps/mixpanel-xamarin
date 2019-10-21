@@ -4,6 +4,58 @@ using ObjCRuntime;
 
 namespace MixpanelLib
 {
+	// @protocol MixpanelType <NSObject>
+	[Protocol, Model]
+	[BaseType (typeof(NSObject))]
+	interface MixpanelType
+	{
+		// @required -(BOOL)equalToMixpanelType:(id<MixpanelType>)rhs;
+		[Abstract]
+		[Export ("equalToMixpanelType:")]
+		bool EqualToMixpanelType (MixpanelType rhs);
+	}
+
+    //[BaseType(typeof(MixpanelType))]
+    //interface MixpanelTypeCategory
+    //{
+    //}
+
+    //[Category]
+    //[BaseType(typeof(MixpanelTypeCategory))]
+    //interface NSString
+    //{
+    //}
+
+    //[Category]
+    //[BaseType(typeof(MixpanelTypeCategory))]
+    //interface NSNumber
+    //{
+    //}
+
+    //[Category]
+    //[BaseType(typeof(MixpanelTypeCategory))]
+    //interface NSArray
+    //{
+    //}
+
+    //[Category]
+    //[BaseType(typeof(MixpanelTypeCategory))]
+    //interface NSDictionary
+    //{
+    //}
+
+    //[Category]
+    //[BaseType(typeof(MixpanelTypeCategory))]
+    //interface NSDate
+    //{
+    //}
+
+    //[Category]
+    //[BaseType(typeof(MixpanelTypeCategory))]
+    //interface NSUrl
+    //{
+    //}
+
 	// @interface MixpanelPeople : NSObject
 	[BaseType (typeof(NSObject))]
 	interface MixpanelPeople
@@ -77,8 +129,27 @@ namespace MixpanelLib
 		void DeleteUser ();
 	}
 
-	// @interface Mixpanel : NSObject
-	[BaseType (typeof(NSObject))]
+    /* 
+     BK: There's no fool-proof way to determine with which Objective-C interface an extern variable declaration may be associated. 
+     Instances of these are bound as [Field] properties in a partial interface into a near-by concrete interface to produce a 
+     more intuitive API, possibly eliminating the 'Constants' interface altogether.
+    [Static]
+    [Verify (ConstantsInterfaceAssociation)]
+    partial interface Constants
+    {
+    	// extern NSString *const _Nonnull MPNotificationTypeMini;
+    	[Field ("MPNotificationTypeMini", "__Internal")]
+    	NSString MPNotificationTypeMini { get; }
+
+    	// extern NSString *const _Nonnull MPNotificationTypeTakeover;
+    	[Field ("MPNotificationTypeTakeover", "__Internal")]
+    	NSString MPNotificationTypeTakeover { get; }
+    }
+    */
+
+
+    // @interface Mixpanel : NSObject
+    [BaseType (typeof(NSObject))]
 	interface Mixpanel
 	{
 		// @property (readonly, atomic, strong) MixpanelPeople * _Nonnull people;
@@ -89,9 +160,21 @@ namespace MixpanelLib
 		[Export ("distinctId")]
 		string DistinctId { get; }
 
+		// @property (readonly, copy, atomic) NSString * _Nonnull anonymousId;
+		[Export ("anonymousId")]
+		string AnonymousId { get; }
+
+		// @property (readonly, copy, atomic) NSString * _Nonnull userId;
+		[Export ("userId")]
+		string UserId { get; }
+
 		// @property (readonly, copy, atomic) NSString * _Nonnull alias;
 		[Export ("alias")]
 		string Alias { get; }
+
+		// @property (atomic) BOOL hadPersistedDistinctId;
+		[Export ("hadPersistedDistinctId")]
+		bool HadPersistedDistinctId { get; set; }
 
 		// @property (copy, nonatomic) NSString * _Nonnull serverURL;
 		[Export ("serverURL")]
@@ -158,10 +241,25 @@ namespace MixpanelLib
 		[Export ("sharedInstanceWithToken:")]
 		Mixpanel SharedInstanceWithToken (string apiToken);
 
+		// +(Mixpanel * _Nonnull)sharedInstanceWithToken:(NSString * _Nonnull)apiToken optOutTrackingByDefault:(BOOL)optOutTrackingByDefault;
+		[Static]
+		[Export ("sharedInstanceWithToken:optOutTrackingByDefault:")]
+		Mixpanel SharedInstanceWithToken (string apiToken, bool optOutTrackingByDefault);
+
 		// +(Mixpanel * _Nonnull)sharedInstanceWithToken:(NSString * _Nonnull)apiToken launchOptions:(NSDictionary * _Nullable)launchOptions;
 		[Static]
 		[Export ("sharedInstanceWithToken:launchOptions:")]
 		Mixpanel SharedInstanceWithToken (string apiToken, [NullAllowed] NSDictionary launchOptions);
+
+		// +(Mixpanel * _Nonnull)sharedInstanceWithToken:(NSString * _Nonnull)apiToken launchOptions:(NSDictionary * _Nullable)launchOptions trackCrashes:(BOOL)trackCrashes automaticPushTracking:(BOOL)automaticPushTracking;
+		[Static]
+		[Export ("sharedInstanceWithToken:launchOptions:trackCrashes:automaticPushTracking:")]
+		Mixpanel SharedInstanceWithToken (string apiToken, [NullAllowed] NSDictionary launchOptions, bool trackCrashes, bool automaticPushTracking);
+
+		// +(Mixpanel * _Nonnull)sharedInstanceWithToken:(NSString * _Nonnull)apiToken launchOptions:(NSDictionary * _Nullable)launchOptions trackCrashes:(BOOL)trackCrashes automaticPushTracking:(BOOL)automaticPushTracking optOutTrackingByDefault:(BOOL)optOutTrackingByDefault;
+		[Static]
+		[Export ("sharedInstanceWithToken:launchOptions:trackCrashes:automaticPushTracking:optOutTrackingByDefault:")]
+		Mixpanel SharedInstanceWithToken (string apiToken, [NullAllowed] NSDictionary launchOptions, bool trackCrashes, bool automaticPushTracking, bool optOutTrackingByDefault);
 
 		// +(Mixpanel * _Nullable)sharedInstance;
 		[Static]
@@ -171,6 +269,10 @@ namespace MixpanelLib
 		// -(instancetype _Nonnull)initWithToken:(NSString * _Nonnull)apiToken launchOptions:(NSDictionary * _Nullable)launchOptions flushInterval:(NSUInteger)flushInterval trackCrashes:(BOOL)trackCrashes;
 		[Export ("initWithToken:launchOptions:flushInterval:trackCrashes:")]
 		IntPtr Constructor (string apiToken, [NullAllowed] NSDictionary launchOptions, nuint flushInterval, bool trackCrashes);
+
+		// -(instancetype _Nonnull)initWithToken:(NSString * _Nonnull)apiToken launchOptions:(NSDictionary * _Nullable)launchOptions flushInterval:(NSUInteger)flushInterval trackCrashes:(BOOL)trackCrashes automaticPushTracking:(BOOL)automaticPushTracking;
+		[Export ("initWithToken:launchOptions:flushInterval:trackCrashes:automaticPushTracking:")]
+		IntPtr Constructor (string apiToken, [NullAllowed] NSDictionary launchOptions, nuint flushInterval, bool trackCrashes, bool automaticPushTracking);
 
 		// -(instancetype _Nonnull)initWithToken:(NSString * _Nonnull)apiToken launchOptions:(NSDictionary * _Nullable)launchOptions andFlushInterval:(NSUInteger)flushInterval;
 		[Export ("initWithToken:launchOptions:andFlushInterval:")]
@@ -187,6 +289,30 @@ namespace MixpanelLib
 		// -(void)identify:(NSString * _Nonnull)distinctId usePeople:(BOOL)usePeople;
 		[Export ("identify:usePeople:")]
 		void Identify (string distinctId, bool usePeople);
+
+		// -(void)addGroup:(NSString * _Nonnull)groupKey groupID:(id<MixpanelType> _Nonnull)groupID;
+		[Export ("addGroup:groupID:")]
+		void AddGroup (string groupKey, MixpanelType groupID);
+
+		// -(void)removeGroup:(NSString * _Nonnull)groupKey groupID:(id<MixpanelType> _Nonnull)groupID;
+		[Export ("removeGroup:groupID:")]
+		void RemoveGroup (string groupKey, MixpanelType groupID);
+
+		// -(void)setGroup:(NSString * _Nonnull)groupKey groupIDs:(NSArray<id<MixpanelType>> * _Nonnull)groupIDs;
+		[Export ("setGroup:groupIDs:")]
+		void SetGroup (string groupKey, MixpanelType[] groupIDs);
+
+		// -(void)setGroup:(NSString * _Nonnull)groupKey groupID:(id<MixpanelType> _Nonnull)groupID;
+		[Export ("setGroup:groupID:")]
+		void SetGroup (string groupKey, MixpanelType groupID);
+
+		// -(void)trackWithGroups:(NSString * _Nonnull)event properties:(NSDictionary * _Nonnull)properties groups:(NSDictionary * _Nonnull)groups;
+		[Export ("trackWithGroups:properties:groups:")]
+		void TrackWithGroups (string @event, NSDictionary properties, NSDictionary groups);
+
+		// -(MixpanelGroup * _Nonnull)getGroup:(NSString * _Nonnull)groupKey groupID:(id<MixpanelType> _Nonnull)groupID;
+		[Export ("getGroup:groupID:")]
+		MixpanelGroup GetGroup (string groupKey, MixpanelType groupID);
 
 		// -(void)track:(NSString * _Nonnull)event;
 		[Export ("track:")]
@@ -256,10 +382,31 @@ namespace MixpanelLib
 		[Export ("createAlias:forDistinctID:usePeople:")]
 		void CreateAlias (string alias, string distinctID, bool usePeople);
 
+		// -(void)optOutTracking;
+		[Export ("optOutTracking")]
+		void OptOutTracking ();
+
+		// -(void)optInTracking;
+		[Export ("optInTracking")]
+		void OptInTracking ();
+
+		// -(void)optInTrackingForDistinctID:(NSString * _Nullable)distinctID;
+		[Export ("optInTrackingForDistinctID:")]
+		void OptInTrackingForDistinctID ([NullAllowed] string distinctID);
+
+		// -(void)optInTrackingForDistinctID:(NSString * _Nullable)distinctID withEventProperties:(NSDictionary * _Nullable)properties;
+		[Export ("optInTrackingForDistinctID:withEventProperties:")]
+		void OptInTrackingForDistinctID ([NullAllowed] string distinctID, [NullAllowed] NSDictionary properties);
+
+		// -(BOOL)hasOptedOutTracking;
+		[Export ("hasOptedOutTracking")]
+		//BK: [Verify (MethodToProperty)]
+		bool HasOptedOutTracking { get; }
+
 		// +(NSString * _Nonnull)libVersion;
 		[Static]
 		[Export ("libVersion")]
-		string LibVersion { get; }
+		string  LibVersion { get; }
 
 		// -(void)showNotificationWithID:(NSUInteger)ID;
 		[Export ("showNotificationWithID:")]
@@ -296,9 +443,37 @@ namespace MixpanelLib
 		bool MixpanelWillFlush (Mixpanel mixpanel);
 	}
 
+	// @interface MixpanelGroup : NSObject
+	[BaseType (typeof(NSObject))]
+	interface MixpanelGroup
+	{
+		// -(void)set:(NSDictionary * _Nonnull)properties;
+		[Export ("set:")]
+		void Set (NSDictionary properties);
+
+		// -(void)setOnce:(NSDictionary * _Nonnull)properties;
+		[Export ("setOnce:")]
+		void SetOnce (NSDictionary properties);
+
+		// -(void)unset:(NSString * _Nonnull)property;
+		[Export ("unset:")]
+		void Unset (string property);
+
+		// -(void)union:(NSString * _Nonnull)property values:(NSArray<id<MixpanelType>> * _Nonnull)values;
+		[Export ("union:values:")]
+		void Union (string property, MixpanelType[] values);
+
+		// -(void)deleteGroup;
+		[Export ("deleteGroup")]
+		void DeleteGroup ();
+
+		// -(void)remove:(NSString * _Nonnull)property value:(id<MixpanelType> _Nonnull)value;
+		[Export ("remove:value:")]
+		void Remove (string property, MixpanelType value);
+	}
+
 	// @interface MPTweak : NSObject
 	[BaseType (typeof(NSObject))]
-	[Internal]
 	interface MPTweak
 	{
 		// -(instancetype _Nonnull)initWithName:(NSString * _Nonnull)name andEncoding:(NSString * _Nonnull)encoding;
@@ -341,7 +516,6 @@ namespace MixpanelLib
 	// @protocol MPTweakObserver <NSObject>
 	[Protocol, Model]
 	[BaseType (typeof(NSObject))]
-    [Internal]
 	interface MPTweakObserver
 	{
 		// @required -(void)tweakDidChange:(MPTweak * _Nonnull)tweak;
@@ -352,7 +526,6 @@ namespace MixpanelLib
 
 	// @interface MPTweakStore : NSObject
 	[BaseType (typeof(NSObject))]
-    [Internal]
 	interface MPTweakStore
 	{
 		// +(instancetype)sharedInstance;
@@ -362,7 +535,7 @@ namespace MixpanelLib
 
 		// @property (readonly, copy, nonatomic) NSArray * tweaks;
 		[Export ("tweaks", ArgumentSemantic.Copy)]
-        MPTweak[] Tweaks { get; }
+		MPTweak[] Tweaks { get; }
 
 		// -(MPTweak *)tweakWithName:(NSString *)name;
 		[Export ("tweakWithName:")]

@@ -1,6 +1,6 @@
 # Mixpanel bindings for Xamarin.iOS
 
-Current Mixpanel SDK version: **3.2.3**
+Current Mixpanel SDK version: **3.5.0**
 
 ## How to use?
 
